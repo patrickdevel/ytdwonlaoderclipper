@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0b1118">
+<title>YouTube Downloader</title>
+<style>
+:root{
+  --bg:#0b1118;--s1:rgba(255,255,255,.06);--s2:rgba(255,255,255,.1);--s3:rgba(255,255,255,.16);
+  --tx:#f1f1f1;--tx2:#a0a8b8;--ac:#7db4f0;--red:#e5373d;--ring:rgba(255,255,255,.85);
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{min-height:100vh}
+body{
+  background:
+    radial-gradient(60% 70% at 15% 20%,#16324a 0,transparent 60%),
+    radial-gradient(55% 60% at 85% 15%,#1b2a5a 0,transparent 60%),
+    radial-gradient(60% 70% at 30% 95%,#0f3b3b 0,transparent 60%),
+    linear-gradient(160deg,#0b1118,#0e141c 55%,#0a1216);
+  background-attachment:fixed;
+  color:var(--tx);
+  font:500 15px/1.45 Roboto,"Segoe UI",-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+  padding:24px 20px 60px;
+}
+.app{max-width:840px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;padding:8px 4px 28px}
+header svg{width:44px;height:32px;filter:drop-shadow(0 0 8px rgba(255,0,0,.4))}
+header h1{font-size:22px;font-weight:700;letter-spacing:-.5px}
+header h1 span{color:var(--ac);font-weight:500}
+.card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;padding:20px;margin-bottom:16px;backdrop-filter:blur(20px)}
+label{display:block;font-size:12px;font-weight:600;color:var(--tx2);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+input[type=url],input[type=text],select{
+  width:100%;height:48px;padding:0 16px;background:var(--s1);
+  border:1px solid rgba(255,255,255,.1);border-radius:12px;color:var(--tx);
+  font:inherit;outline:none;transition:border-color .15s,background .15s;
+}
+input:focus,select:focus{border-color:var(--ac);background:var(--s2)}
+select{cursor:pointer;appearance:none;padding-right:36px;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23a0a8b8'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat:no-repeat;background-position:right 12px center;background-size:18px}
+.row{display:flex;gap:12px}.row .field{flex:1}
+.url-row{display:flex;gap:10px}.url-row input{flex:1}
+.btn{height:48px;padding:0 24px;background:var(--s2);border:0;border-radius:12px;
+  color:var(--tx);font:inherit;font-weight:600;cursor:pointer;
+  transition:background .15s,transform .1s;white-space:nowrap}
+.btn:hover{background:var(--s3)}.btn:active{transform:scale(.97)}
+.btn.pri{background:var(--red);color:#fff}.btn.pri:hover{background:#ff4a50}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.chips{display:flex;gap:8px;margin-top:4px}
+.chip{flex:1;height:44px;background:var(--s1);border:1px solid transparent;border-radius:12px;
+  color:var(--tx2);font:inherit;font-weight:600;cursor:pointer;transition:all .15s}
+.chip:hover{background:var(--s2);color:var(--tx)}
+.chip.on{background:rgba(125,180,240,.18);border-color:var(--ac);color:#fff}
+.hidden{display:none!important}
+.info{display:flex;gap:18px}
+.info img{width:220px;aspect-ratio:16/9;border-radius:12px;object-fit:cover;flex:none;background:var(--s1)}
+.info-tx{min-width:0;flex:1}
+.info-tx h2{font-size:20px;font-weight:600;line-height:1.3;margin-bottom:8px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.info-tx p{color:var(--tx2);font-size:14px}
+.settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:640px){.settings-grid{grid-template-columns:1fr}.info{flex-direction:column}.info img{width:100%}}
+.progress{height:8px;background:var(--s1);border-radius:99px;overflow:hidden;margin-top:16px}
+.progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--ac),#fff);
+  border-radius:99px;transition:width .2s}
+.status{margin-top:12px;font-size:14px;color:var(--tx2);min-height:20px}
+.status.err{color:#ff6b6b}.status.ok{color:#6bea8e}
+#toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,40px);
+  padding:14px 24px;background:rgba(30,40,55,.95);border:1px solid rgba(255,255,255,.15);
+  border-radius:999px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;
+  transition:all .3s;backdrop-filter:blur(20px);z-index:100}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;
+  vertical-align:middle;margin-right:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <svg viewBox="0 0 28.4 20">
+      <path fill="#f00" d="M27.97 3.12a3.5 3.5 0 0 0-2.47-2.47C23.3 0 14.5 0 14.5 0S5.7 0 3.5.65A3.5 3.5 0 0 0 1.03 3.12C.38 5.32.38 10 .38 10s0 4.68.65 6.88a3.5 3.5 0 0 0 2.47 2.47C5.7 20 14.5 20 14.5 20s8.8 0 11-.65a3.5 3.5 0 0 0 2.47-2.47c.65-2.2.65-6.88.65-6.88s0-4.68-.65-6.88z"/>
+      <path fill="#fff" d="M11.6 14.3L18.9 10l-7.3-4.3z"/>
+    </svg>
+    <h1>YouTube <span>Downloader</span></h1>
+  </header>
+
+  <div class="card">
+    <label for="url">YouTube-Link</label>
+    <div class="url-row">
+      <input id="url" type="url" placeholder="https://www.youtube.com/watch?v=…" autocomplete="off" spellcheck="false">
+      <button id="fetch" class="btn pri">Laden</button>
+    </div>
+  </div>
+
+  <div id="infoCard" class="card hidden">
+    <div class="info">
+      <img id="thumb" alt="">
+      <div class="info-tx">
+        <h2 id="title"></h2>
+        <p id="meta"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="settingsCard" class="card hidden">
+    <div class="settings-grid">
+      <div>
+        <label>Format</label>
+        <div class="chips">
+          <button class="chip on" data-format="video">Video (MP4)</button>
+          <button class="chip" data-format="audio">Nur Audio (M4A)</button>
+        </div>
+      </div>
+      <div>
+        <label for="quality">Qualität</label>
+        <select id="quality"></select>
+      </div>
+    </div>
+    <div class="settings-grid">
+      <div>
+        <label for="start">Von (mm:ss)</label>
+        <input id="start" type="text" placeholder="00:00" value="00:00">
+      </div>
+      <div>
+        <label for="end">Bis (mm:ss)</label>
+        <input id="end" type="text" placeholder="00:00" value="00:00">
+      </div>
+    </div>
+    <button id="download" class="btn pri" style="width:100%;height:52px;font-size:16px">Herunterladen</button>
+    <div class="progress hidden" id="progress"><i></i></div>
+    <div id="status" class="status"></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const state = { info:null, format:'video', url:'' };
+const SAB_OK = (() => { try { new SharedArrayBuffer(1); return true; } catch { return false; } })();
+
+function toast(msg) {
+  const t = $('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+function setStatus(text, type='') { const s = $('status'); s.textContent = text; s.className = 'status ' + type; }
+function fmtBytes(n) {
+  if (!n) return '';
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n/1024).toFixed(0) + ' KB';
+  if (n < 1073741824) return (n/1048576).toFixed(1) + ' MB';
+  return (n/1073741824).toFixed(2) + ' GB';
+}
+function fmtTime(s) {
+  s = Math.max(0, Math.round(s || 0));
+  const h = Math.floor(s/3600), m = Math.floor(s%3600/60), x = s%60;
+  return h ? `${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`
+           : `${m}:${String(x).padStart(2,'0')}`;
+}
+function parseTime(str) {
+  if (!str) return 0;
+  const p = String(str).trim().split(':').map(Number);
+  if (p.some(isNaN)) return 0;
+  if (p.length === 3) return p[0]*3600 + p[1]*60 + p[2];
+  if (p.length === 2) return p[0]*60 + p[1];
+  return p[0] || 0;
+}
+
+/* ---------- Info laden ---------- */
+async function fetchInfo() {
+  const url = $('url').value.trim();
+  if (!url) return toast('Bitte einen Link einfügen');
+  setStatus('Lade Video-Info …');
+  $('fetch').disabled = true;
+  try {
+    const r = await fetch('/api/dl?action=info&url=' + encodeURIComponent(url));
+    if (!r.ok) { const e = await r.json().catch(() => ({ error:'Fehler '+r.status })); throw new Error(e.error || 'Fehler '+r.status); }
+    const info = await r.json();
+    state.info = info; state.url = url;
+    $('thumb').src = info.thumbnail;
+    $('title').textContent = info.title;
+    $('meta').textContent = `${info.author} • ${fmtTime(info.duration)}`;
+    $('infoCard').classList.remove('hidden');
+    $('settingsCard').classList.remove('hidden');
+    $('start').value = '00:00';
+    $('end').value = fmtTime(info.duration);
+    populateQuality();
+    setStatus('');
+  } catch (e) {
+    setStatus(e.message, 'err');
+  } finally {
+    $('fetch').disabled = false;
+  }
+}
+
+function populateQuality() {
+  const sel = $('quality'); sel.innerHTML = '';
+  const list = state.format === 'video' ? state.info.videoFormats : state.info.audioFormats;
+  if (!list || !list.length) { sel.innerHTML = '<option>Keine Formate verfügbar</option>'; return; }
+  for (const f of list) {
+    const o = document.createElement('option');
+    o.value = f.itag;
+    o.textContent = state.format === 'video'
+      ? `${f.quality}${f.fps ? ' ' + f.fps + 'fps' : ''} (${(f.container||'mp4').toUpperCase()}${f.size ? ', ' + fmtBytes(f.size) : ''})`
+      : `${f.quality}${f.bitrate ? ' ' + f.bitrate + 'kbps' : ''} (${(f.container||'mp4').toUpperCase()}${f.size ? ', ' + fmtBytes(f.size) : ''})`;
+    sel.appendChild(o);
+  }
+}
+
+/* ---------- Download + Trim ---------- */
+let ffmpegInstance = null;
+async function getFFmpeg() {
+  if (ffmpegInstance) return ffmpegInstance;
+  if (!SAB_OK) throw new Error('SharedArrayBuffer nicht verfügbar (COOP/COEP fehlen)');
+  const { FFmpeg } = FFmpegWASM;
+  const { toBlobURL } = FFmpegUtil;
+  const ff = new FFmpeg();
+  ff.on('log', ({ message }) => console.debug('[ffmpeg]', message));
+  await ff.load({
+    coreURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js', 'text/javascript'),
+    wasmURL: await toBlobURL('https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm', 'application/wasm')
+  });
+  ffmpegInstance = ff;
+  return ff;
+}
+async function trimBlob(blob, start, end, ext) {
+  try {
+    const ff = await getFFmpeg();
+    const inN = 'in.' + ext, outN = 'out.' + ext;
+    await ff.writeFile(inN, new Uint8Array(await blob.arrayBuffer()));
+    const dur = end - start;
+    const args = ['-ss', String(start), '-i', inN, '-t', String(dur), '-c', 'copy', '-avoid_negative_ts', 'make_zero'];
+    if (ext === 'mp4') args.push('-movflags', '+faststart');
+    args.push(outN);
+    await ff.exec(args);
+    const data = await ff.readFile(outN);
+    await ff.deleteFile(inN).catch(()=>{}); await ff.deleteFile(outN).catch(()=>{});
+    return new Blob([data.buffer], { type: blob.type });
+  } catch (e) { console.error('Trim error:', e); return null; }
+}
+
+async function download() {
+  if (!state.info) return;
+  const itag = parseInt($('quality').value, 10);
+  if (!itag) return toast('Kein Format ausgewählt');
+  let start = parseTime($('start').value);
+  let end = parseTime($('end').value);
+  const dur = state.info.duration;
+  if (end <= start || end > dur + 1) return setStatus('Ungültiger Zeitbereich', 'err');
+
+  const full = start === 0 && Math.abs(end - dur) < 1;
+  if (!full && !SAB_OK) {
+    if (!confirm('Trimmen ist in diesem Browser ohne COOP/COEP nicht möglich.\nVolle Datei herunterladen?')) return;
+    start = 0; end = dur;
+  }
+
+  const list = state.format === 'video' ? state.info.videoFormats : state.info.audioFormats;
+  const fmt = list.find(f => f.itag === itag);
+  if (fmt && fmt.size > 500*1024*1024 && !full) {
+    if (!confirm(`Diese Datei ist ${fmtBytes(fmt.size)} groß.\nTrimmen im Browser kann fehlschlagen. Fortfahren?`)) return;
+  }
+
+  const ext = state.format === 'audio' ? 'm4a' : 'mp4';
+  $('download').disabled = true;
+  $('progress').classList.remove('hidden');
+  $('progress').querySelector('i').style.width = '0%';
+  setStatus('Lade Video …');
+
+  try {
+    const res = await fetch(`/api/dl?url=${encodeURIComponent(state.url)}&itag=${itag}`);
+    if (!res.ok) { const e = await res.json().catch(() => ({ error:'Fehler '+res.status })); throw new Error(e.error || 'Fehler '+res.status); }
+    const ct = res.headers.get('content-type') || '';
+    if (!/video|audio|octet-stream/.test(ct)) {
+      const e = await res.json().catch(() => ({})); throw new Error(e.error || 'Unerwartete Antwort');
+    }
+
+    const total = parseInt(res.headers.get('content-length') || '0', 10) || 0;
+    const reader = res.body.getReader();
+    const chunks = []; let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); received += value.length;
+      const pct = total ? Math.min(99, received/total*100) : 0;
+      $('progress').querySelector('i').style.width = (total ? pct : Math.min(99, received/1048576)) + '%';
+      setStatus(`Lade Video … ${fmtBytes(received)}${total ? ' / ' + fmtBytes(total) : ''}`);
+    }
+    let blob = new Blob(chunks, { type: state.format === 'audio' ? 'audio/mp4' : 'video/mp4' });
+    $('progress').querySelector('i').style.width = '100%';
+
+    let finalName = (state.info.title || 'video').replace(/[\\/:*?"<>|]/g, '_').slice(0, 100);
+
+    if (!full) {
+      setStatus('Trimme Video … (kann etwas dauern)');
+      $('progress').querySelector('i').style.width = '50%';
+      const trimmed = await trimBlob(blob, start, end, ext);
+      if (trimmed) {
+        blob = trimmed;
+        finalName += `_${fmtTime(start).replace(/:/g,'-')}_${fmtTime(end).replace(/:/g,'-')}`;
+      } else {
+        toast('Trimmen fehlgeschlagen – lade volle Datei');
+      }
+    }
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = finalName + '.' + ext;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    setStatus('Fertig! ✓', 'ok');
+  } catch (e) {
+    console.error(e);
+    setStatus(e.message || 'Fehler beim Download', 'err');
+  } finally {
+    $('download').disabled = false;
+    setTimeout(() => { $('progress').classList.add('hidden'); $('progress').querySelector('i').style.width = '0%'; }, 2500);
+  }
+}
+
+/* ---------- Events ---------- */
+$('fetch').onclick = fetchInfo;
+$('url').addEventListener('keydown', e => { if (e.key === 'Enter') fetchInfo(); });
+$('download').onclick = download;
+document.querySelectorAll('.chip').forEach(chip => {
+  chip.onclick = () => {
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+    chip.classList.add('on');
+    state.format = chip.dataset.format;
+    if (state.info) populateQuality();
+  };
+});
+})();
+</script>
+</body>
+</html>
